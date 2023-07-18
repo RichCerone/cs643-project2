@@ -145,7 +145,7 @@ We need to read in the CSV input to set what our model will train with. I also s
 
 ```python
 dataframes = spark.read.csv(
-    "s3://cs-643-ml-bucket/TrainingDataset.csv",
+    "s3://{your_bucket}/TrainingDataset.csv",
     header=True,
     schema=schema
 )
