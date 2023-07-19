@@ -32,7 +32,9 @@ This project uses SageMaker notebooks running on a Spark cluster. I used this gu
 
 6. We want to create a Custom TCP Rule, on port 8998, and set the Security Group ID to the Group ID from the SageMaker notebook security group that we collected earlier.
 
-7. Choose the Save button. You’ve now opened up the important ports, so your SageMaker notebook instance can talk to your EMR cluster over Livy.
+7. We also want to create a Custom TCP rule to allow all traffic for CIDR 0.0.0.0/0.
+
+8. Choose the Save button. You’ve now opened up the important ports, so your SageMaker notebook instance can talk to your EMR cluster over Livy.
 
 ### Set up SageMaker Notebook
 
@@ -157,7 +159,7 @@ dataframes.show(5) # Use this to ensure data was read properly.
 We need to transform the data into a single vector so we can feed it into our ML model which is using Random Forest.
 
 ```python
-from pyspark.ml.feature VectorAssembler
+from pyspark.ml.feature import VectorAssembler
 
 assembler = VectorAssembler(
     inputCols=[
@@ -244,5 +246,164 @@ file_name = os.path.join("emr/wine/mleap", "model.tar.gz")
 s3.Bucket(bucket).upload_file("/tmp/model.tar.gz", file_name)
 ```
 
+## Create ML Endpoint
+Next we need to setup the ML endpoint to receive requests to process with our model.
 
+### Setup Input Schema
+This code sets up the input schema the ML service will consume.
 
+```python
+%%local
+import json
+
+schema = {
+    "input": [
+        {"name": "fixed_acidity", "type": "double"},
+        {"name": "volatile_acidity", "type": "double"},
+        {"name": "citric_acid", "type": "double"},
+        {"name": "residual_sugar", "type": "double"},
+        {"name": "chlorides", "type": "double"},
+        {"name": "free_sulfur_dioxide", "type": "double"},
+        {"name": "total_sulfur_dioxide", "type": "double"},
+        {"name": "density", "type": "double"},
+        {"name": "pH", "type": "double"},
+        {"name": "sulphates", "type": "double"},
+        {"name": "alcohol", "type": "double"},
+        {"name": "quality", "type": "double"},
+    ],
+    "output": {"name": "prediction", "type": "double"},
+}
+schema_json = json.dumps(schema, indent=2)
+```
+
+### Initialize SageMaker Session
+This code starts the SageMaker session which will run our ML model.
+
+```python
+%%local
+import boto3
+import sagemaker
+from sagemaker import get_execution_role
+from sagemaker.sparkml.model import SparkMLModel
+
+boto3_session = boto3.session.Session()
+sagemaker_client = boto3.client("sagemaker")
+sagemaker_runtime_client = boto3.client("sagemaker-runtime")
+
+# Initialize sagemaker session
+session = sagemaker.Session(
+    boto_session=boto3_session,
+    sagemaker_client=sagemaker_client,
+    sagemaker_runtime_client=sagemaker_runtime_client,
+)
+
+role = get_execution_role()
+```
+
+### Start ML Service
+This code starts the ML service and runs in on a single instance.
+
+```python
+%%local
+sparkml_data = "s3://{}/{}/{}".format(bucket, "emr/wine/mleap", "model.tar.gz")
+model_name = "sparkml-wine"
+sparkml_model = SparkMLModel(
+    model_data=sparkml_data,
+    role=role,
+    spark_version="3.3",
+    sagemaker_session=session,
+    name=model_name,
+    env={"SAGEMAKER_SPARKML_SCHEMA": schema_json},
+)
+
+endpoint_name = "sparkml-wine-ep"
+sparkml_model.deploy(
+    initial_instance_count=1, instance_type="ml.c4.xlarge", endpoint_name=endpoint_name
+)
+```
+
+### Test Code
+This code is similar to what is done in the program and shows that the ML model processes the input file and gives wine quality estimates.
+
+```python
+%%local
+from sagemaker.predictor import Predictor
+from sagemaker.serializers import CSVSerializer, JSONSerializer
+from sagemaker.deserializers import JSONDeserializer
+import pandas as pd
+
+s3 = boto3.client('s3')
+
+with open('ValidationDataset.csv', 'wb') as f:
+    s3.download_fileobj('cs-643-ml-bucket', 'ValidationDataset.csv', f)
+
+    data = pd.read_csv('ValidationDataset.csv')
+    
+for i in data.index:
+    payload = f"{data['fixed acidity'][i]},{data['volatile acidity'][i]},{data['citric acid'][i]},{data['residual sugar'][i]},{data['chlorides'][i]},{data['free sulfur dioxide'][i]},{data['total sulfur dioxide'][i]},{data['density'][i]},{data['pH'][i]},{data['sulphates'][i]},{data['alcohol'][i]},{data['quality'][i]}"
+    predictor = Predictor(
+            endpoint_name=endpoint_name, sagemaker_session=session, serializer=CSVSerializer()
+        )
+    r = predictor.predict(payload)
+    print(r)
+```
+
+This is some of the output:
+__Figure 1.0__
+![Alt text](img/figure_10.png)
+
+## Setup an EC2 Instance
+1. Create a new EC2 instance using ubuntu.
+2. SSH into your EC2 instance.
+3. Run the following commands:
+   ```
+   # pip
+   sudo apt update
+   sudo apt-get install python3.10
+   curl -O https://bootstrap.pypa.io/get-pip.py
+   
+   # Docker
+   sudo apt install ca-certificates curl gnupg lsb-release
+   sudo mkdir -p /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt update
+   sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+   ```
+4. Then you can copy the project to the VM and follow the steps under section **'Using the Python Program With Docker'**.
+
+## Using the Python Program Without Docker
+To use the python program without docker you will need to do some setup steps:
+1. Create an env in the **program** folder and activate it: 
+    ```
+    python -m venv .venv
+    .\.venv\Scripts\activate
+    ```
+2. Install the required python packages using **pip**:
+    ```pip install -r .\requirements.txt```
+3. Open the **.env** file and change the following fields to the values that match your AWS environment:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_SESSION_TOKEN
+    - REGION_NAME
+    - ENDPOINT_NAME
+    - INPUT_FILE
+
+4. You can run the program as such: ```python .\program.py```
+
+## Using the Python Program With Docker
+Before running the docker file please open the **.env** file and change the following fields to the values that match your AWS environment:
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_SESSION_TOKEN
+- REGION_NAME
+- ENDPOINT_NAME
+- INPUT_FILE
+
+Then run the following:
+```sudo docker build -t ml-program .```
+
+Now it is ready to be copied to the EC2 instance.
+
+Once on the EC2 instance, run the following:
+```sudo docker run -d --name my-program```
