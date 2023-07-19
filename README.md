@@ -77,7 +77,7 @@ mv example_config.json config.json
    This should replace three instances of localhost in the “url” field of the three kernel credentials. Feel free to use any editor you are comfortable with, and save the changes.
 
 ## Training the ML Model
-I used MLeap to train my model. The reason being that MLeap is a little faster than MLib.It also acts as a wrapper around MLib and provides the same functionality.
+I used MLeap to train my model. The reason being that MLeap is a little faster than MLib. It also acts as a wrapper around MLib and provides the same functionality.
 
 Below is my python code I used in my SageMaker notebook to train my model.
 
