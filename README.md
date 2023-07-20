@@ -143,7 +143,7 @@ Then I set the bucket as global variable in the Spark kernel:
 ### Read Input Data and Set Split
 We need to read in the CSV input to set what our model will train with. I also set a random split on the dataframes so that it uses 80% for training and 20% for validation. If you have not already, upload the input CSV to your desired bucket.
 
-**Note: I had to conver the files from Canvas to comma delimitted CSV's.**
+**Note: I had to convert the files from Canvas to comma delimitted CSV's.**
 
 ```python
 dataframes = spark.read.csv(
@@ -392,7 +392,7 @@ To use the python program without docker you will need to do some setup steps:
 4. You can run the program as such: ```python .\program.py```
 
 ## Using the Python Program With Docker
-Before running the docker file please open the **.env** file and change the following fields to the values that match your AWS environment:
+Before running the docker file please create and open the **.env** file at the root of the project and change the following fields to the values that match your AWS environment:
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
 - AWS_SESSION_TOKEN

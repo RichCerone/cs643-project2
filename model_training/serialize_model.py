@@ -1,0 +1,1 @@
+model.serializeToBundle("jar:file:/tmp/model.zip", transformed_validation_df)
