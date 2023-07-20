@@ -361,6 +361,7 @@ __Figure 1.0__
    sudo apt update
    sudo apt-get install python3.10
    curl -O https://bootstrap.pypa.io/get-pip.py
+   sudo apt install python3-pip
    
    # Docker
    sudo apt install ca-certificates curl gnupg lsb-release
