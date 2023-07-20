@@ -392,7 +392,7 @@ To use the python program without docker you will need to do some setup steps:
 4. You can run the program as such: ```python .\program.py```
 
 ## Using the Python Program With Docker
-Before running the docker file please open the **.env** file and change the following fields to the values that match your AWS environment:
+Before running the docker file please create and open the **.env** file at the root of the project and change the following fields to the values that match your AWS environment:
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
 - AWS_SESSION_TOKEN
