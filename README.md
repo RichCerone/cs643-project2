@@ -143,7 +143,7 @@ Then I set the bucket as global variable in the Spark kernel:
 ### Read Input Data and Set Split
 We need to read in the CSV input to set what our model will train with. I also set a random split on the dataframes so that it uses 80% for training and 20% for validation. If you have not already, upload the input CSV to your desired bucket.
 
-**Note: I had to conver the files from Canvas to comma delimitted CSV's.**
+**Note: I had to convert the files from Canvas to comma delimitted CSV's.**
 
 ```python
 dataframes = spark.read.csv(
